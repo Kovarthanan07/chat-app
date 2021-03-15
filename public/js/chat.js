@@ -7,6 +7,11 @@ const $messageFormButton = $messageForm.querySelector("button");
 const $sendLocationButton = document.querySelector("#send-location");
 const $messages = document.querySelector("#messages");
 
+// Options
+const { username, room } = Qs.parse(location.search, {
+  ignoreQueryPrefix: true,
+});
+
 // Templates
 const messageTemplate = document.querySelector("#message-template").innerHTML;
 
@@ -38,3 +43,5 @@ $messageForm.addEventListener("submit", (e) => {
     console.log("Message delivered!");
   });
 });
+
+socket.emit("join", { username, room });
