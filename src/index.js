@@ -3,6 +3,12 @@ const express = require("express");
 const http = require("http");
 const socketio = require("socket.io");
 const { generateMessage } = require("./utils/messages");
+const {
+  addUser,
+  removeUser,
+  getUser,
+  getUserInRoom,
+} = require("./utils/users");
 
 const app = express();
 const server = http.createServer(app);
@@ -16,21 +22,45 @@ app.use(express.static(publicDirectoryPath));
 io.on("connection", (socket) => {
   console.log("New WebSocket Connection");
 
-  socket.on("join", ({ username, room }) => {
-    socket.join(room);
-    socket.emit("message", generateMessage("Welcome ..."));
+  socket.on("join", ({ username, room }, callback) => {
+    const { error, user } = addUser({
+      id: socket.id,
+      username,
+      room,
+    });
+
+    if (error) {
+      return callback(error);
+    }
+
+    socket.join(user.room);
+
+    socket.emit("message", generateMessage("Admin", "Welcome ..."));
     socket.broadcast
-      .to(room)
-      .emit("message", generateMessage(`${username} has joined ...`));
+      .to(user.room)
+      .emit(
+        "message",
+        generateMessage("Admin", `${user.username} has joined ...`)
+      );
+
+    callback();
   });
 
   socket.on("sendMessage", (message, callback) => {
-    io.emit("message", generateMessage(message));
+    const user = getUser(socket.id);
+    io.to(user.room).emit("message", generateMessage(user.username, message));
     callback("message delivered !");
   });
 
   socket.on("disconnect", () => {
-    io.emit("message", generateMessage("A user has left ..."));
+    const user = removeUser(socket.id);
+
+    if (user) {
+      io.to(user.room).emit(
+        "message",
+        generateMessage("Admin", `${user.username} has left ...`)
+      );
+    }
   });
 });
 
